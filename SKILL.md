@@ -52,7 +52,13 @@ coherent subsystem a single agent can hold and read in full:
 
 Each unit is `{ name, paths: [<absolute paths or globs>], hint: "<what it does / what to watch>" }`.
 
-## 2. Fan out + verify (the Workflow)
+## 2. Fan out + verify
+
+Run the same three-phase plan on whatever orchestration primitive your harness
+gives you: **audit each unit → verify each finding with independent skeptics →
+keep only the majority-confirmed.** Pick the matching subsection.
+
+### Claude Code — the Workflow tool
 
 Call the **Workflow** tool with the bundled script and your scouted config:
 
@@ -78,10 +84,32 @@ The workflow runs in the background; you'll be notified when it completes. If a
 `<transcriptDir>/journal.jsonl` exists and a result looks empty, read it before
 concluding there were no findings.
 
-**Fallback (no Workflow tool available):** do the same shape by hand with the Agent
-tool — spawn one `general-purpose` (or `Explore`) agent per unit in a single message,
-collect their findings, then spawn one skeptic agent per finding to verify, and drop
-everything that isn't confirmed. Same report at the end.
+### Wizard (or any `spawn_subagent` harness)
+
+There is no Workflow tool here — drive the fan-out yourself with `spawn_subagent`
+(see `wizard/README.md` for install, and `wizard/install.sh` to add the tuned
+`auditor`/`skeptic` subagents):
+
+1. **Audit.** For each unit, `spawn_subagent({ subagent: "auditor", task: <a
+   self-contained prompt: the unit's paths, the chosen dimensions, and "reply with
+   ONLY `{\"findings\":[…]}`">, background: true })`. Use `"worker"` if the bundled
+   `auditor` isn't installed. Spawn them all, then poll `subagent_status` until each
+   finishes and parse the JSON out of every report.
+2. **Verify.** For each finding, `spawn_subagent({ subagent: "skeptic", task: <a
+   refute prompt; "reply ONLY `{\"status\",\"reason\",\"adjustedSeverity\"}`">,
+   background: true })`. With `votes > 1`, spawn that many per finding. Keep a
+   finding only when a majority return `confirmed`.
+3. Continue to step 3 with the confirmed set.
+
+The exact prompt wording is in `references/audit-workflow.js` (`auditPrompt` and
+`verifyPrompt`) — reuse it verbatim so both harnesses audit identically.
+
+### Any other harness
+
+Same shape with whatever background-agent/Task primitive you have. With none at
+all, fall back to a single context: review each unit in turn, then **re-read and
+independently verify** each finding before trusting it — the verify pass is the
+part that keeps the report honest, so don't skip it.
 
 ## 3. Write the report + summarize
 

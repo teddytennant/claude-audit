@@ -65,6 +65,20 @@ cost scales with codebase size and depth. For very large repos, start with `--fo
 on the riskiest dimension or use `--quick`. The skill logs anything it caps so a
 bounded run never reads as "audited everything."
 
+## Use with Wizard and other agents
+
+The skill isn't Claude-Code-only. It runs on [Wizard](https://github.com/teddytennant/wizard)
+— and any harness with a subagent/Task primitive — because the audit is defined as a
+harness-agnostic plan (scout → fan out reviewers → adversarially verify → report). Only
+the orchestration primitive differs: Claude Code uses the `Workflow` tool, Wizard drives
+`spawn_subagent` directly. Install for Wizard with:
+
+```sh
+wizard/install.sh   # copies the skill, /audit command, and auditor/skeptic subagents into ~/.wizard
+```
+
+See [`wizard/README.md`](wizard/README.md) for the details and the full mapping table.
+
 ## How it's built
 
 - [`SKILL.md`](SKILL.md) — the skill: scouting instructions + how it drives the workflow.
